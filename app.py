@@ -15,7 +15,9 @@ win_lose_escolhas = [('tesoura', 'papel'),
 
 def main():
     modo = input('Escolha o modo de jogo: \n 1 -> Player x Machine\n 2 -> Player x Player\n')
-    tempo_duracao = 10
+    tempo_duracao = input('Escolha a duração do jogo em segundos: \n 1 -> 30\n 2 -> 45\n 3 -> 60\n')
+
+    tempo_duracao = int(tempo_duracao)
 
     # Estado do jogo
     pontos = [0, 0]
