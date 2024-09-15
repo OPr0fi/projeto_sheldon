@@ -18,8 +18,8 @@ win_lose_escolhas = [
 escolhas_validas = ("pedra", "papel", "tesoura", "lagarto", "spock")
 
 
-def ler_escolha():
-    print("Digite um número abaixo: ")
+def ler_escolha(message):
+    print(message)
     print(" 0 -> pedra\n 1 -> papel\n 2 -> tesoura\n 3 -> lagarto\n 4 -> spock")
 
     escolha = int(input("Sua escolha: "))
@@ -53,11 +53,10 @@ def main():
             f"Tempo restante: {tempo_duracao - int(tempo_atual - tempo_inicial)} segundos"
         )
 
-        print("Vez do jogador 1")
-        escolhas[0] = ler_escolha()
+        escolhas[0] = ler_escolha("Jogador 1, sua jogada:")
+
         if modo == "2":
-            print("Vez do jogador 2")
-            escolhas[1] = ler_escolha()
+            escolhas[1] = ler_escolha("Jogador 2, sua jogada:")
         else:
             escolhas[1] = random.choice(escolhas_validas)
 
