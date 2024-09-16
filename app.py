@@ -1,8 +1,11 @@
 import time
 import os
 import random
+import curses
 
-win_lose_escolhas = [
+from errors import OpcaoInvalidaError
+
+CONDICAO_VITORIA_TUPLAS = [
     ("tesoura", "papel"),
     ("papel", "pedra"),
     ("pedra", "tesoura"),
@@ -15,108 +18,232 @@ win_lose_escolhas = [
     ("spock", "pedra"),
 ]
 
-escolhas_validas = ("pedra", "papel", "tesoura", "lagarto", "spock")
+MODO_SINGLEPLAYER = "1"
+MODO_MULTIPLAYER = "2"
+
+JOGADOR_1 = 0
+JOGADOR_2 = 1
+
+ESCOLHAS_POSSIVEIS = ("pedra", "papel", "tesoura", "lagarto", "spock")
 
 
-def ler_escolha(mensagem, pontos, jogador_atual, adversario, modo):
-    print(mensagem)
-    print(" 0 -> pedra\n 1 -> papel\n 2 -> tesoura\n 3 -> lagarto\n 4 -> spock")
+def ler_escolha(stdscr, jogador):
+    mostrar_titulo(stdscr)
+    stdscr.addstr(f'{jogador}, escolha a sua jogada:\n')
+    stdscr.addstr('1 - pedra\n2 - papel\n3 - tesoura\n4 - lagarto\n5 - spock\n')
+    stdscr.refresh()
+    input = None
 
     try:
-        escolha = int(input("Sua escolha: "))
-        if escolha not in range(5):
-            raise ValueError
-        return escolhas_validas[escolha]
-    except (ValueError, IndexError):
-        if modo == "1":
-            print(f"Tecla errada! O ponto vai para o computador.")
-            pontos[1] += 1
-        else:
-            print(f"Tecla errada! O ponto vai para o Jogador {adversario + 1}.")
-            pontos[adversario] += 1
+        input = int(stdscr.getch())
+    except:
         return None
 
+    if input not in range(49, 54):
+        raise OpcaoInvalidaError()
 
-def mostrar_tempo_restante(tempo_duracao, tempo_inicial):
-    tempo_atual = time.time()
-    tempo_restante = tempo_duracao - int(tempo_atual - tempo_inicial)
-    print(f"Tempo restante: {tempo_restante} segundos")
+    stdscr.addstr(f'Você escolheu: {input}\n')
+    time.sleep(2)
+    return ESCOLHAS_POSSIVEIS[input - 1]
 
+def calcular_tempo_restante(tempo_inicial, tempo_duracao):
+    return tempo_duracao - int(time.time() - tempo_inicial)
 
-def mostrar_pontos(pontos):
-    print(f"Placar: {pontos[0]} x {pontos[1]}")
+def mostrar_titulo(stdscr):
+    stdscr.addstr('Sheldon Cooper - Pedra, papel, tesoura, lagarto, spock\n')
 
+def mostrar_pontos(stdscr, pontos_ordenados):
+    stdscr.addstr(f"Placar: {pontos_ordenados[0]} x {pontos_ordenados[1]}\n")
+
+def mostrar_opcoes(stdscr, opcoes):
+    for index, opcao in enumerate(opcoes):
+        stdscr.addstr(f'{index + 1} - {opcao}\n')
 
 def tempo_expirado(tempo_duracao, tempo_inicial):
     return (time.time() - tempo_inicial) > tempo_duracao
 
 
-def main():
-    modo = input(
-        "Escolha o modo de jogo: \n 1 -> Player x Machine\n 2 -> Player x Player\n"
-    )
-    tempo_duracao = input(
-        "Escolha a duração do jogo em segundos: \n 1 -> 30\n 2 -> 45\n 3 -> 60\n"
-    )
+def main(stdscr=None):
+    stdscr = curses.initscr()
 
-    tempo_duracao = [30, 45, 60][int(tempo_duracao) - 1]
-
-    pontos = [0, 0]
-    tempo_inicial = time.time()
+    highlight = 0
+    opcoes = ['Player x Machine', 'Player x Player', 'Sair']
 
     while True:
-        os.system('cls||clear')
+        stdscr.clear()
+        mostrar_titulo(stdscr)
+        stdscr.addstr('Escolha o modo de jogo:\n')
+        # A variável ´highlight´ é usada para indicar qual opção está selecionada
+        for index, opcao in enumerate(opcoes):
+            if index == highlight:
+                mode = curses.A_REVERSE
+            else:
+                mode = curses.A_NORMAL
+            mensagem = f'{opcao}\n'
+            stdscr.addstr(mensagem, mode)
+
+        stdscr.refresh()
+        tecla_pressionada = stdscr.getch()
+
+        if tecla_pressionada == curses.KEY_UP:
+            highlight = (highlight - 1) % 3
+        elif tecla_pressionada == curses.KEY_DOWN:
+            highlight = (highlight + 1) % 3
+        elif tecla_pressionada == curses.KEY_ENTER or tecla_pressionada in [10, 13]:
+            break
+
+    # Sair do jogo
+    if highlight == 2:
+        return
+
+    # Modo de jogo escolhido
+    modo = MODO_SINGLEPLAYER if highlight == 0 else MODO_MULTIPLAYER
+
+    # Iniciar o jogo
+    pontos_ordenados = [0, 0]
+    tempo_inicial = time.time()
+    tempo_duracao = 20
+    refresh_time = 0.1
+
+    # Precisamos que os inputs não bloqueiem a execução do programa
+    stdscr.nodelay(True)
+
+    # Precisamos controlar qual jogador está jogando
+    jogador_atual = JOGADOR_1
+    escolhas_ordenadas = ["", ""]
+    while True:
+        stdscr.clear()
         if tempo_expirado(tempo_duracao, tempo_inicial):
             break
 
-        mostrar_tempo_restante(tempo_duracao, tempo_inicial)
-        mostrar_pontos(pontos)
+        if jogador_atual == JOGADOR_1:
+            tempo_restante = calcular_tempo_restante(tempo_inicial, tempo_duracao)
+            stdscr.addstr(f'Tempo restante: {tempo_restante}\n')
+            mostrar_pontos(stdscr, pontos_ordenados)
 
-        escolhas = ["", ""]
+            primeira_escolha = None
 
-        escolhas[0] = ler_escolha("Jogador 1, sua jogada:", pontos, 0, 1, modo)
-        if escolhas[0] is None:
-            time.sleep(2)
-            continue
+            stdscr.addstr(f'Jogador 1, escolha a sua jogada:\n')
+            mostrar_opcoes(stdscr, ESCOLHAS_POSSIVEIS)
+            stdscr.refresh()
+            input = None
 
-        if modo == "2":
-            escolhas[1] = ler_escolha("Jogador 2, sua jogada:", pontos, 1, 0, modo)
-            if escolhas[1] is None:
-                time.sleep(2)
+            time.sleep(refresh_time)
+
+            # Esse trycatch é necessário por que o getkey pode lançar
+            # uma exceção caso não tenha nenhuma tecla pressionada
+            # já que ligamos o `nodelay`
+            try:
+                input = stdscr.getkey()
+            except:
                 continue
-            print(f"Jogador 2 escolheu: {escolhas[1]}")
-        else:
-            escolhas[1] = random.choice(escolhas_validas)
-            print(f"O computador escolheu: {escolhas[1]}")
 
-        print("Jogador 1 escolheu: ", escolhas[0])
+            stdscr.addstr(f'Você escolheu: {input}\n')
 
-        if escolhas[0] == escolhas[1]:
-            print("Empate!")
-        elif (escolhas[0], escolhas[1]) in win_lose_escolhas:
-            print("Jogador 1 - Você venceu!")
-            pontos[0] += 1
+            if not input in ["1", "2", "3", "4", "5"]:
+                stdscr.addstr("Tecla errada, o ponto vai para o seu adversário\n")
+                stdscr.refresh()
+                pontos_ordenados[1] += 1
+                time.sleep(1.5)
+                continue
+
+            if input != None:
+                primeira_escolha = ESCOLHAS_POSSIVEIS[int(input) - 1]
+                escolhas_ordenadas[0] = primeira_escolha
+                jogador_atual = JOGADOR_2
+
+
+        if modo == MODO_MULTIPLAYER and jogador_atual == JOGADOR_2:
+            stdscr.clear()
+
+            input = None
+            segunda_escolha = None
+
+            tempo_restante = calcular_tempo_restante(tempo_inicial, tempo_duracao)
+            stdscr.addstr(f'Tempo restante: {tempo_restante}\n')
+            mostrar_pontos(stdscr, pontos_ordenados)
+
+            stdscr.addstr(f'Jogador 2, escolha a sua jogada:\n')
+            mostrar_opcoes(stdscr, ESCOLHAS_POSSIVEIS)
+            stdscr.refresh()
+
+            time.sleep(refresh_time)
+
+            try:
+                input = stdscr.getkey()
+            except:
+                continue
+
+            stdscr.addstr(f'Você escolheu: {input}\n')
+
+            if not input in ["1", "2", "3", "4", "5"]:
+                stdscr.addstr("Tecla errada, o ponto vai para o seu adversário\n")
+                stdscr.refresh()
+                pontos_ordenados[0] += 1
+                time.sleep(1.5)
+                continue
+
+            if input != None:
+                segunda_escolha = ESCOLHAS_POSSIVEIS[int(input) - 1]
+                escolhas_ordenadas[1] = segunda_escolha
+                jogador_atual = JOGADOR_1
+
+            stdscr.refresh()
+
+        elif modo == MODO_SINGLEPLAYER and jogador_atual == JOGADOR_2  :
+            segunda_escolha = random.choice(ESCOLHAS_POSSIVEIS)
+            escolhas_ordenadas[1] = segunda_escolha
+            jogador_atual = JOGADOR_1
+
+        stdscr.refresh()
+        if modo == MODO_SINGLEPLAYER:
+            stdscr.addstr(f'Jogador 1 > {escolhas_ordenadas[0]} x {escolhas_ordenadas[1]} < Computador\n')
         else:
-            if modo == "2":
-                print("Jogador 2 venceu!")
+            stdscr.addstr(f'Jogador 1 > {escolhas_ordenadas[0]} x {escolhas_ordenadas[1]} Jogador 2\n')
+
+        if escolhas_ordenadas[0] == escolhas_ordenadas[1]:
+            stdscr.addstr("Empate!\n")
+        elif (escolhas_ordenadas[0], escolhas_ordenadas[1]) in CONDICAO_VITORIA_TUPLAS:
+            pontos_ordenados[0] += 1
+            stdscr.addstr("Jogador 1 venceu essa rodada\n")
+        else:
+            pontos_ordenados[1] += 1
+
+            if modo == MODO_SINGLEPLAYER:
+                stdscr.addstr("Jogador 2 venceu essa rodada\n")
             else:
-                print("Computador venceu!")
-            pontos[1] += 1
+                stdscr.addstr("Computador venceu essa rodada\n")
+        stdscr.refresh()
+        time.sleep(1)
 
-        time.sleep(3)
+    # Não precisamos mais que os inputs não bloqueiem a execução do programa
+    stdscr.nodelay(False)
 
-    print("Fim de jogo!")
-    mostrar_pontos(pontos)
+    stdscr.addstr("Fim de jogo!\n")
+    mostrar_pontos(stdscr, pontos_ordenados)
 
-    if pontos[0] == pontos[1]:
-        print("O jogo terminou em empate!")
-    else:
-        vencedor = 1 if pontos[0] > pontos[1] else 2
-        if modo == "1":
-            print("Você ganhou!" if vencedor == 1 else "Você perdeu!")
+    empate = pontos_ordenados[0] == pontos_ordenados[1]
+
+    if empate:
+        stdscr.addstr("O jogo terminou em empate!\n")
+
+    if modo == MODO_SINGLEPLAYER:
+        if pontos_ordenados[0] > pontos_ordenados[1]:
+            stdscr.addstr("You won!\n")
         else:
-            print(f"Jogador {vencedor} venceu!")
+            stdscr.addstr("You lost!\n")
+    else:
+        if pontos_ordenados[0] > pontos_ordenados[1]:
+            stdscr.addstr("Jogador 1, You won!\n")
+            stdscr.addstr("Jogador 2, You lose!\n")
+        else:
+            stdscr.addstr("Jogador 2, You won!\n")
+            stdscr.addstr("Jogador 1, You lose!\n")
+
+    stdscr.refresh()
+    stdscr.addstr("Pressione qualquer tecla\n")
+    stdscr.getkey()
 
 
 if __name__ == "__main__":
-    main()
+    curses.wrapper(main)
