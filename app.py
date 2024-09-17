@@ -1,122 +1,155 @@
+import curses
 import time
-import os
-import random
 
-win_lose_escolhas = [
-    ("tesoura", "papel"),
-    ("papel", "pedra"),
-    ("pedra", "tesoura"),
-    ("pedra", "lagarto"),
-    ("lagarto", "spock"),
-    ("spock", "tesoura"),
-    ("tesoura", "lagarto"),
-    ("lagarto", "papel"),
-    ("papel", "spock"),
-    ("spock", "pedra"),
-]
+from escolha import ESCOLHAS_POSSIVEIS, Escolha
+from game import Game, GameMode
+from jogador import Jogador
+from ui import UserInterface
 
-escolhas_validas = ("pedra", "papel", "tesoura", "lagarto", "spock")
+def display_placar(ui: UserInterface, game: Game):
+    pontuacao1, pontuacao2 = game.placar()
+    ultimo_vencedor = game.ultimo_vencedor
+    primeiro_jogador = game.jogadores[0]
+    segundo_jogador = game.jogadores[1]
 
+    ui.display('\n')
 
-def ler_escolha(mensagem, pontos, jogador_atual, adversario, modo):
-    print(mensagem)
-    print(" 0 -> pedra\n 1 -> papel\n 2 -> tesoura\n 3 -> lagarto\n 4 -> spock")
-
-    try:
-        escolha = int(input("Sua escolha: "))
-        if escolha not in range(5):
-            raise ValueError
-        return escolhas_validas[escolha]
-    except (ValueError, IndexError):
-        if modo == "1":
-            print(f"Tecla errada! O ponto vai para o computador.")
-            pontos[1] += 1
+    if ultimo_vencedor is not None:
+        if ultimo_vencedor is primeiro_jogador:
+            ui.colored_display(f'{primeiro_jogador.nome}', ui.GREEN_FOREGROUND)
         else:
-            print(f"Tecla errada! O ponto vai para o Jogador {adversario + 1}.")
-            pontos[adversario] += 1
-        return None
+            ui.display(f'{primeiro_jogador.nome}', ui.RED_FOREGROUND)
+
+        ui.display(f' - ({pontuacao1} x {pontuacao2}) - ')
+
+        if ultimo_vencedor is segundo_jogador:
+            ui.colored_display(f'{segundo_jogador.nome}', ui.GREEN_FOREGROUND)
+        else:
+            ui.display(f'{segundo_jogador.nome}', ui.RED_FOREGROUND)
+
+    else:
+        ui.colored_display(f'{primeiro_jogador.nome} - ({pontuacao1} x {pontuacao2}) - {segundo_jogador.nome}', ui.YELLOW_FOREGROUND)
+
+    ui.display('\n\n')
 
 
-def mostrar_tempo_restante(tempo_duracao, tempo_inicial):
-    tempo_atual = time.time()
-    tempo_restante = tempo_duracao - int(tempo_atual - tempo_inicial)
-    print(f"Tempo restante: {tempo_restante} segundos")
+def display_game_state(ui: UserInterface, game: Game, jogador: Jogador):
+    tempo_restante = game.calcular_tempo_restante()
+
+    color_pair = None
+
+    if tempo_restante > (game.duracao / 2):
+        color_pair = ui.GREEN_PAIR
+    elif tempo_restante > (game.duracao / 5):
+        color_pair = ui.YELLOW_PAIR
+    else:
+        color_pair = ui.RED_PAIR
 
 
-def mostrar_pontos(pontos):
-    print(f"Placar: {pontos[0]} x {pontos[1]}")
+    ui.clear()
+
+    ui.display(f'{jogador.nome} agora é sua vez !\n', ui.REVERSE_MODE)
+    ui.display('\n')
+    ui.colored_display(f'⏰ Tempo restante: {tempo_restante:.2f} segundos\n', color_pair)
+    display_placar(ui, game)
+    ui.display('Escolha uma opção: (basta digitar uma tecla, rápido!)\n')
+    for idx, escolha in enumerate(ESCOLHAS_POSSIVEIS):
+        ui.display(f'{idx+1} - {escolha.name}\n')
+
+    ui.refresh()
 
 
-def tempo_expirado(tempo_duracao, tempo_inicial):
-    return (time.time() - tempo_inicial) > tempo_duracao
+def ler_escolha(ui: UserInterface, jogador: Jogador, game: Game):
+    start_time = time.time()
+    while not game.tempo_expirado():
+        display_game_state(ui, game, jogador)
+
+        # Check for input with a short timeout
+        ui.set_nonblocking(True)
+        try:
+            escolha = ui.getkey()
+            ui.set_nonblocking(False)
+
+            if escolha not in ['1', '2', '3', '4', '5']:
+                ui.display('Tecla errada, o ponto vai para o seu adversário')
+                ui.display('\n')
+                ui.refresh()
+                time.sleep(1)
+                return None, True
+
+            return ESCOLHAS_POSSIVEIS[int(escolha) - 1], False
+        except:
+            # No input, continue updating display
+            pass
+
+        ui.sleep(0.1)  # Short sleep to prevent CPU overuse
+
+    # Time expired without a choice
+    return None, True
 
 
-def main():
-    modo = input(
-        "Escolha o modo de jogo: \n 1 -> Player x Machine\n 2 -> Player x Player\n"
-    )
-    tempo_duracao = input(
-        "Escolha a duração do jogo em segundos: \n 1 -> 30\n 2 -> 45\n 3 -> 60\n"
-    )
+def main(stdscr):
+    ui = UserInterface(stdscr)
 
-    tempo_duracao = [30, 45, 60][int(tempo_duracao) - 1]
+    escolha = ui.menu("Escolha o modo de jogo", ["Player x Machine", "Player x Player", "Quit"])
 
-    pontos = [0, 0]
-    tempo_inicial = time.time()
+    if escolha == 2:
+        return
 
-    while True:
-        os.system('cls||clear')
-        if tempo_expirado(tempo_duracao, tempo_inicial):
-            break
+    modo = GameMode.SINGLEPLAYER if escolha == 0 else GameMode.MULTIPLAYER
 
-        mostrar_tempo_restante(tempo_duracao, tempo_inicial)
-        mostrar_pontos(pontos)
+    escolha = ui.menu("Escolha a duração do jogo", ["30 segundos", "45 segundos", "60 segundos"])
 
-        escolhas = ["", ""]
+    duracao = 30 if escolha == 0 else 45 if escolha == 1 else 60
+    game = Game(modo, duracao)
 
-        escolhas[0] = ler_escolha("Jogador 1, sua jogada:", pontos, 0, 1, modo)
-        if escolhas[0] is None:
-            time.sleep(2)
+    stdscr.clear()
+    stdscr.refresh()
+
+    while not game.tempo_expirado():
+        escolha, erro = ler_escolha(ui, game.jogadores[0], game)
+
+        if erro:
+            game.jogadores[1].incrementar_pontos()
             continue
 
-        if modo == "2":
-            escolhas[1] = ler_escolha("Jogador 2, sua jogada:", pontos, 1, 0, modo)
-            if escolhas[1] is None:
-                time.sleep(2)
+        if escolha is None:  # Time expired
+            break
+
+        game.jogadores[0].escolher(Escolha(escolha))
+
+        if game.modo == GameMode.MULTIPLAYER:
+            escolha, erro = ler_escolha(ui, game.jogadores[1], game)
+
+            if erro:
+                game.jogadores[0].incrementar_pontos()
                 continue
-            print(f"Jogador 2 escolheu: {escolhas[1]}")
+
+            if escolha is None:  # Time expired
+                break
+
+            game.jogadores[1].escolher(Escolha(escolha))
+
         else:
-            escolhas[1] = random.choice(escolhas_validas)
-            print(f"O computador escolheu: {escolhas[1]}")
+            game.jogadores[1].escolher(Escolha.aleatorio())
 
-        print("Jogador 1 escolheu: ", escolhas[0])
+        game.processar_rodada()
 
-        if escolhas[0] == escolhas[1]:
-            print("Empate!")
-        elif (escolhas[0], escolhas[1]) in win_lose_escolhas:
-            print("Jogador 1 - Você venceu!")
-            pontos[0] += 1
-        else:
-            if modo == "2":
-                print("Jogador 2 venceu!")
-            else:
-                print("Computador venceu!")
-            pontos[1] += 1
+    vencedor = game.verificar_vencedor()
 
-        time.sleep(3)
+    ui.set_nonblocking(False)
 
-    print("Fim de jogo!")
-    mostrar_pontos(pontos)
+    ui.clear()
 
-    if pontos[0] == pontos[1]:
-        print("O jogo terminou em empate!")
+    ui.display('Tempo esgotado!\n\n')
+    if vencedor is None:
+        ui.colored_display('Empate!\n', ui.YELLOW_PAIR)
     else:
-        vencedor = 1 if pontos[0] > pontos[1] else 2
-        if modo == "1":
-            print("Você ganhou!" if vencedor == 1 else "Você perdeu!")
-        else:
-            print(f"Jogador {vencedor} venceu!")
+        ui.colored_display(f'{vencedor.nome} - You won!\n', ui.GREEN_PAIR)
 
+    ui.display('Pressione qualquer tecla para sair...\n')
+    ui.refresh()
+    ui.getch()
 
 if __name__ == "__main__":
-    main()
+    curses.wrapper(main)
