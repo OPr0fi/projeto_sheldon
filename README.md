@@ -4,6 +4,13 @@ Pedra, papel e tesoura modificado, projeto desenvolvido para a disciplina de Lin
 
 ## Como rodar
 
+Clone o repositório e entre na pasta do projeto
+
+```bash
+git clone https://github.com/OPr0fi/projeto_sheldon.git
+cd projeto_sheldon
+```
+
 Se estiver no windows, é necessário instalar a biblioteca curses
 
 ```bash
@@ -20,4 +27,4 @@ python3 app.py
 ## Como jogar
 
 O jogo é uma variação do clássico pedra, papel e tesoura, com a adição de duas novas opções: lagarto e Spock.
-Você vai decidir se quer jogar Singleplayr ou Multiplayer e a duração do jogo
+Você vai decidir se quer jogar Singleplayer ou Multiplayer e a duração do jogo
