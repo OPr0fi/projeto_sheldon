@@ -1,4 +1,5 @@
 from enum import Enum
+from random import choice
 
 
 class Escolha(Enum):
@@ -8,16 +9,11 @@ class Escolha(Enum):
     LAGARTO = 4
     SPOCK = 5
 
-    @classmethod
-    def from_int(cls, value: int):
-        return cls(value)
-
     def __str__(self):
         return self.name.lower()
 
     @staticmethod
     def aleatorio():
-        from random import choice
         return choice(list(Escolha))
 
 COMBINACOES_DE_VITORIA = [
@@ -33,5 +29,17 @@ COMBINACOES_DE_VITORIA = [
     (Escolha.PEDRA, Escolha.TESOURA),
 ]
 
+MENSAGENS_DE_VITORIA = {
+    (Escolha.TESOURA, Escolha.PAPEL): 'Tesoura corta papel',
+    (Escolha.PAPEL, Escolha.PEDRA): 'Papel cobre pedra',
+    (Escolha.PEDRA, Escolha.LAGARTO): 'Pedra esmaga lagarto',
+    (Escolha.LAGARTO, Escolha.SPOCK): 'Lagarto envenena Spock',
+    (Escolha.SPOCK, Escolha.TESOURA): 'Spock esmaga tesoura',
+    (Escolha.TESOURA, Escolha.LAGARTO): 'Tesoura decapita lagarto',
+    (Escolha.LAGARTO, Escolha.PAPEL): 'Lagarto come papel',
+    (Escolha.PAPEL, Escolha.SPOCK): 'Papel refuta Spock',
+    (Escolha.SPOCK, Escolha.PEDRA): 'Spock vaporiza pedra',
+    (Escolha.PEDRA, Escolha.TESOURA): 'Pedra quebra tesoura',
+}
 
 ESCOLHAS_POSSIVEIS = (Escolha.PEDRA, Escolha.PAPEL, Escolha.TESOURA, Escolha.LAGARTO, Escolha.SPOCK)
