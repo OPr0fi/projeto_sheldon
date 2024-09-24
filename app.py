@@ -105,7 +105,7 @@ def main(stdscr):
         return
 
     modo = GameMode.SINGLEPLAYER if escolha == 0 else GameMode.MULTIPLAYER
-    duracao = [8, 45, 60][ui.menu("Escolha a duração do jogo", ["30 segundos", "45 segundos", "60 segundos"])]
+    duracao = [30, 45, 60][ui.menu("Escolha a duração do jogo", ["30 segundos", "45 segundos", "60 segundos"])]
 
     jogadores = [Jogador('Jogador 1' if modo == GameMode.MULTIPLAYER else 'Jogador'),
                  Jogador('Máquina' if modo == GameMode.SINGLEPLAYER else 'Jogador 2')]
